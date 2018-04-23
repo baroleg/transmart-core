@@ -1,11 +1,13 @@
 package org.transmartproject.rest
 
+import com.google.common.collect.HashMultiset
 import com.opencsv.CSVReader
 import com.opencsv.CSVWriter
 import grails.test.mixin.integration.Integration
 import grails.transaction.Rollback
 import groovy.util.logging.Slf4j
 import org.springframework.beans.factory.annotation.Autowired
+import org.transmartproject.core.multidimquery.Dimension
 import org.transmartproject.core.multidimquery.query.Constraint
 import org.transmartproject.core.multidimquery.query.StudyObjectConstraint
 import org.transmartproject.core.users.User
@@ -60,6 +62,9 @@ class DataTableViewDataSerializationServiceSpec extends Specification {
 
         expect:
         'data' in files
+        HashMultiset.create(clinicalData.longitudinalClinicalFacts*.value) == HashMultiset.create(
+                files.data[2..(files.data.size()-1)].collectMany { it[2..(it.size()-1)]*.toString() } )
+
 
     }
 
@@ -83,6 +88,10 @@ class DataTableViewDataSerializationServiceSpec extends Specification {
             result[name] = data
         }
         result
+    }
+
+    def checkDimension(Dimension dim, List elements, List<List> file) {
+
     }
 
 }
