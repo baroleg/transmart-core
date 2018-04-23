@@ -110,7 +110,7 @@ class DataTableViewDataSerializationServiceSpec extends Specification {
 
         assert elementsMap as Set ==
                 elements.collect { dim.asSerializable(it).collectEntries { k, v ->
-                    [k, v instanceof Map ? valuesToString(v) : v.toString() ]
+                    [k, v == null ? '' : v instanceof Map ? valuesToString(v) : v.toString() ]
                 } } as Set
         return true
     }
