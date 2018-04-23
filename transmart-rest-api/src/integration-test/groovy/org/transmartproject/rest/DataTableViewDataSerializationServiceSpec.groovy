@@ -14,6 +14,7 @@ import org.transmartproject.core.users.User
 import org.transmartproject.db.TestData
 import org.transmartproject.db.clinical.MultidimensionalDataResourceService
 import org.transmartproject.db.dataquery.clinical.ClinicalTestData
+import org.transmartproject.db.multidimquery.DimensionImpl
 import org.transmartproject.db.user.AccessLevelTestData
 import org.transmartproject.rest.serialization.Format
 import org.transmartproject.rest.serialization.tabular.DataTableTSVSerializer
@@ -62,10 +63,12 @@ class DataTableViewDataSerializationServiceSpec extends Specification {
 
         expect:
         'data' in files
-        HashMultiset.create(clinicalData.longitudinalClinicalFacts*.value) == HashMultiset.create(
-                files.data[2..(files.data.size()-1)].collectMany { it[2..(it.size()-1)]*.toString() } )
-
-
+        HashMultiset.create(clinicalData.longitudinalClinicalFacts*.value*.toString()) == HashMultiset.create(
+                files.data[2..-1].collectMany { it[2..-1]*.toString() } )
+        checkDimension(DimensionImpl.STUDY, [clinicalData.longitudinalStudy], files.study)
+        checkDimension(DimensionImpl.TRIAL_VISIT, clinicalData.longitudinalClinicalFacts*.trialVisit.unique(), files."trial visit")
+        checkDimension(DimensionImpl.PATIENT, clinicalData.longitudinalClinicalFacts*.patient.unique(), files.patient)
+        checkDimension(DimensionImpl.CONCEPT, clinicalData.longitudinalClinicalFacts*.concept.unique(), files.concept)
     }
 
     Map<String, List<List>> parseTSVZip(ByteArrayOutputStream stream) {
@@ -90,8 +93,55 @@ class DataTableViewDataSerializationServiceSpec extends Specification {
         result
     }
 
-    def checkDimension(Dimension dim, List elements, List<List> file) {
+    boolean checkDimension(Dimension dim, List elements, List<List> file) {
+        def headers = file[0].collect { if(it.contains(".")) it.split("\\.") else it }
+        def elementsMap = file[1..-1].collect {
+            def map = [:]
+            [headers, it].transpose().each { key, value ->
+                if(key instanceof String) {
+                    map[key] = value
+                } else {
+                    setPath(key, map, value)
+                }
+            }
+            map.remove('label')
+            map
+        }
 
+        assert elementsMap as Set ==
+                elements.collect { dim.asSerializable(it).collectEntries { k, v ->
+                    [k, v instanceof Map ? valuesToString(v) : v.toString() ]
+                } } as Set
+        return true
+    }
+
+    Map valuesToString(Map map) {
+        map.collectEntries { k, v ->
+            v instanceof Map ? [(k): valuesToString(v)] :
+            v == null ? [:] : [(k): v.toString() ]
+        }
+    }
+
+    void setPath(List<String> path, object, value) {
+        if(value == null) return
+        if(path.size() == 1) {
+            object."${path[0]}" = value
+            return
+        }
+
+        def map
+        switch (object."${path[0]}") {
+            case null:
+                map = object."${path[0]}" = [:]
+                break
+            case Map:
+                map = object."${path[0]}"
+                break
+            default:
+                throw new IllegalStateException("property is not a map: $path, $object")
+        }
+
+        setPath(path[1..-1], map, value)
     }
 
 }

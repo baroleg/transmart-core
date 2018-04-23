@@ -34,11 +34,11 @@ class DataTableTSVSerializer extends AbstractTSVSerializer {
         def rowElements = writeValues(dataTable)
         zipOutStream.closeEntry()
 
-        dataTable.columnDimensions.eachWithIndex{ Dimension dim, int i ->
+        dataTable.columnDimensions.eachWithIndex { Dimension dim, int i ->
             if(dim.elementsSerializable) return
 
             zipOutStream.putNextEntry(new ZipEntry("${dim.name}.tsv"))
-            writeDimensionElements(dim, dataTable.columnKeys*.elements*.getAt(i))
+            writeDimensionElements(dim, dataTable.columnKeys*.elements*.getAt(i) as LinkedHashSet)
             zipOutStream.closeEntry()
         }
 
